@@ -6,7 +6,7 @@ Security fixes are released for the latest minor version of parsistent.
 
 | Version | Supported |
 | ------- | --------- |
-| 0.1.x   | ✅        |
+| 0.0.x   | ✅        |
 
 ## Reporting a vulnerability
 
