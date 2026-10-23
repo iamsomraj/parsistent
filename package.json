@@ -1,6 +1,6 @@
 {
   "name": "parsistent",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "Typed localStorage, sessionStorage and cookies, shaped like the browser APIs: validated values, defaults, cross-tab sync and SSR-safe React hooks",
   "license": "MIT",
   "author": {
