@@ -1,5 +1,6 @@
 import type { StandardSchemaV1, Value, ValueWithDefault } from '@/types';
 
+/** Adds the default value to a definition, when one is given. */
 function create<T>(definition: Value<T>, defaultValue: T | undefined): Value<T> {
   return defaultValue === undefined ? definition : { ...definition, defaultValue };
 }
@@ -78,11 +79,27 @@ export function boolean(defaultValue?: boolean): Value<boolean> {
   );
 }
 
+/** `false` for an Invalid Date. */
 function isValidDate(date: Date): boolean {
   return !Number.isNaN(date.valueOf());
 }
 
-/** Date, stored as an ISO-8601 string. */
+const ISO_DAY = /^\d{4}-\d{2}-\d{2}/;
+
+/**
+ * Checks that the `YYYY-MM-DD` part of an ISO string is a real calendar date:
+ * `new Date('2021-02-30')` silently rolls over to March 2nd.
+ */
+function isCalendarDate(raw: string): boolean {
+  const day = ISO_DAY.exec(raw)?.[0];
+  if (day === undefined) {
+    return true; // not an ISO date-time; `new Date` already validated it
+  }
+  const date = new Date(day);
+  return isValidDate(date) && date.toISOString().slice(0, 10) === day;
+}
+
+/** Date, stored as an ISO-8601 string. Impossible calendar dates are invalid. */
 export function date(defaultValue: Date): ValueWithDefault<Date>;
 export function date(): Value<Date>;
 export function date(defaultValue?: Date): Value<Date> {
@@ -90,7 +107,7 @@ export function date(defaultValue?: Date): Value<Date> {
     {
       parse: (raw) => {
         const value = new Date(raw);
-        return isValidDate(value) ? value : null;
+        return isValidDate(value) && isCalendarDate(raw) ? value : null;
       },
       serialize: (value) => value.toISOString(),
       eq: (valueA, valueB) => valueA.valueOf() === valueB.valueOf(),
@@ -105,6 +122,7 @@ export function date(defaultValue?: Date): Value<Date> {
  */
 export type JsonValidator<T> = ((value: unknown) => T | null) | StandardSchemaV1<unknown, T>;
 
+/** Runs a {@link JsonValidator} on a parsed JSON value. */
 function validate<T>(validator: JsonValidator<T>, value: unknown): T | null {
   // Checked first: some schemas are also callable (ArkType types are functions)
   if ('~standard' in validator) {

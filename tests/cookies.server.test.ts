@@ -31,6 +31,12 @@ describe('cookie store on the server', () => {
     expect(cookies.fromHeader(header).cookies).toEqual({ theme: 'dark', count: '7' });
   });
 
+  it('fromHeader treats __proto__ as a plain cookie name', () => {
+    const snapshot = cookies.fromHeader('__proto__=x; theme=dark');
+    expect(snapshot.get('theme')).toBe('dark');
+    expect(Object.getPrototypeOf(snapshot.cookies)).toBe(Object.prototype);
+  });
+
   it('fromHeader uses defaults for missing or invalid cookies', () => {
     const snapshot = cookies.fromHeader('theme=blue');
     expect(snapshot.get('theme')).toBe('light');

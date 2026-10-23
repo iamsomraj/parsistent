@@ -48,7 +48,10 @@ export type TypedStorage<S extends Schema> = {
   readonly length: number;
   /** Returns the value of a key, or its default when missing or invalid */
   getItem<K extends keyof S & string>(key: K): inferValue<S[K]>;
-  /** Stores a value. Setting the default removes the key (see `clearOnDefault`) */
+  /**
+   * Stores a value. Setting the default removes the key (see `clearOnDefault`).
+   * Like `localStorage.setItem`, throws when the storage is full.
+   */
   setItem<K extends keyof S & string>(key: K, value: inferInput<S[K]>): void;
   /** Removes a key, so it reads as its default */
   removeItem<K extends keyof S & string>(key: K): void;
@@ -64,8 +67,14 @@ export type TypedStorage<S extends Schema> = {
   readonly [INTERNAL]: StoreInternals;
 };
 
-/** In-memory `Storage`, used when the real one is unavailable (server, blocked storage). */
-class MemoryStorage implements Pick<Storage, 'getItem' | 'setItem' | 'removeItem'> {
+/** The subset of `Storage` that stores rely on. */
+type Area = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
+
+/** Payload of the internal change notifications. */
+type AreaChange = { external: boolean };
+
+/** In-memory storage, used in the browser when the real storage is blocked. */
+class MemoryArea implements Area {
   private readonly values = new Map<string, string>();
 
   getItem(key: string): string | null {
@@ -81,69 +90,96 @@ class MemoryStorage implements Pick<Storage, 'getItem' | 'setItem' | 'removeItem
   }
 }
 
-type Area = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
+/**
+ * Storage used on the server: always empty, and writes are ignored, because a server
+ * process is shared by every request and must never keep one user's values.
+ */
+const serverArea: Area = {
+  getItem: () => null,
+  setItem: () => undefined,
+  removeItem: () => undefined,
+};
 
-type AreaChange = { external: boolean };
-
-// Shared per storage area, so every store on the same area sees same-tab changes
-const emitters = new WeakMap<object, Emitter<AreaChange>>();
-const memoryAreas = new Map<string, MemoryStorage>();
+// Notifications are shared per storage area, so every store on the same area
+// (e.g. two stores on `localStorage` with different prefixes) sees same-tab changes
+const emitters = new WeakMap<Area, Emitter<AreaChange>>();
+// One memory fallback per blocked built-in area, shared like the real one would be
+const memoryAreas = new Map<'local' | 'session', MemoryArea>();
 let warnedUnavailable = false;
 
+/**
+ * Returns the emitter of a storage area, creating it on first use. Creating it also
+ * starts listening to the native `storage` event, which reports changes made in other
+ * tabs (it never fires in the tab that made the change).
+ */
 function emitterFor(area: Area): Emitter<AreaChange> {
-  let emitter = emitters.get(area);
-  if (!emitter) {
-    emitter = new Emitter();
-    emitters.set(area, emitter);
-    // Other tabs: the native `storage` event only fires in the tabs that didn't make the change
-    if (typeof window !== 'undefined') {
-      window.addEventListener('storage', (event) => {
-        if (event.storageArea !== area) {
-          return;
-        }
-        if (event.key === null) {
-          emitter?.emitAll({ external: true });
-        } else {
-          emitter?.emit(event.key, { external: true });
-        }
-      });
-    }
+  const existing = emitters.get(area);
+  if (existing) {
+    return existing;
+  }
+  const emitter = new Emitter<AreaChange>();
+  emitters.set(area, emitter);
+  if (typeof window !== 'undefined') {
+    window.addEventListener('storage', (event) => {
+      if (event.storageArea !== area) {
+        return;
+      }
+      // `key` is `null` when the other tab called `clear()`
+      if (event.key === null) {
+        emitter.emitAll({ external: true });
+      } else {
+        emitter.emit(event.key, { external: true });
+      }
+    });
   }
   return emitter;
 }
 
-function memoryArea(name: string): MemoryStorage {
+/** Returns the shared memory fallback of a built-in area. */
+function memoryAreaFor(name: 'local' | 'session'): MemoryArea {
   let area = memoryAreas.get(name);
   if (!area) {
-    area = new MemoryStorage();
+    area = new MemoryArea();
     memoryAreas.set(name, area);
   }
   return area;
 }
 
+/** Warns once that storage is blocked and memory is used instead. */
+function warnUnavailable(error: unknown): void {
+  if (!warnedUnavailable) {
+    warnedUnavailable = true;
+    console.warn('[parsistent] Storage is unavailable, using memory instead', error);
+  }
+}
+
+/**
+ * Resolves a {@link StorageSource} to the area to use:
+ * - on the server, the read-only {@link serverArea};
+ * - the real storage when it is accessible;
+ * - otherwise (blocked storage), an in-memory fallback.
+ */
 function resolveArea(source: StorageSource): Area {
-  const fallbackName = typeof source === 'string' ? source : 'custom';
-  try {
-    if (typeof source === 'function') {
-      return source();
+  if (source === 'local' || source === 'session') {
+    if (typeof window === 'undefined') {
+      return serverArea;
     }
-    if (source === 'local' || source === 'session') {
-      if (typeof window === 'undefined') {
-        // Server rendering: reads return defaults
-        return memoryArea(source);
-      }
+    try {
       const area = source === 'local' ? window.localStorage : window.sessionStorage;
-      // Accessing storage can throw when it is blocked (e.g. disabled cookies)
+      // Accessing storage throws when it is blocked (e.g. site data disabled)
       area.getItem('');
       return area;
+    } catch (error) {
+      warnUnavailable(error);
+      return memoryAreaFor(source);
     }
-    return source;
+  }
+  try {
+    return typeof source === 'function' ? source() : source;
   } catch (error) {
-    if (!warnedUnavailable) {
-      warnedUnavailable = true;
-      console.warn('[parsistent] Storage is unavailable, using memory instead', error);
-    }
-    return memoryArea(fallbackName);
+    warnUnavailable(error);
+    // Custom sources get their own fallback, so unrelated stores never share values
+    return new MemoryArea();
   }
 }
 
@@ -151,8 +187,11 @@ function resolveArea(source: StorageSource): Area {
  * Creates a typed mirror of `localStorage` / `sessionStorage` for the keys of a schema.
  * Values are parsed when read, so a missing or invalid value reads as the default.
  *
+ * On the server, reads return defaults and writes are ignored.
+ *
  * @param source `'local'`, `'session'`, a `Storage`, or a function returning one
  * @param schema Each key and how its value is stored (see {@link string}, {@link number}…)
+ * @param options `clearOnDefault` and `prefix`
  *
  * @example
  * ```ts
@@ -173,34 +212,41 @@ export function createStorage<S extends Schema>(
 ): TypedStorage<S> {
   const { clearOnDefault = true, prefix = '' } = options;
   const keys = Object.keys(schema);
+  // Client reads and server reads (hydration) are cached apart, so they never evict
+  // each other and values keep a stable reference
   const cache = new DecodeCache();
+  const serverCache = new DecodeCache();
   const listeners = new Set<StorageChangeListener<S>>();
   let stopListening: (() => void) | undefined;
   let resolved: Area | undefined;
 
+  /** The storage area, resolved on first use (never at import time). */
   function area(): Area {
     resolved ??= resolveArea(source);
     return resolved;
   }
 
-  function assertKey(key: string): void {
+  /** Returns the value definition of a key, throwing for keys outside the schema. */
+  function valueOf(key: string): NonNullable<S[string]> {
     if (!Object.prototype.hasOwnProperty.call(schema, key)) {
       throw new TypeError(`[parsistent] "${key}" is not a key of this storage`);
     }
+    return schema[key] as NonNullable<S[string]>;
   }
 
+  /** Returns the raw stored string of a key. */
   function raw(key: string): string | null {
     return area().getItem(prefix + key);
   }
 
+  /** Returns the decoded value of a key (cached while the stored string is unchanged). */
   function read(key: string): unknown {
-    assertKey(key);
-    return cache.read(key, schema[key] as NonNullable<S[string]>, raw(key));
+    return cache.read(key, valueOf(key), raw(key));
   }
 
+  /** Encodes and stores a value (`null` removes the key), then notifies subscribers. */
   function write(key: string, value: unknown): void {
-    assertKey(key);
-    const encoded = encode(schema[key] as NonNullable<S[string]>, value, clearOnDefault);
+    const encoded = encode(valueOf(key), value, clearOnDefault);
     if (encoded === raw(key)) {
       return;
     }
@@ -212,13 +258,16 @@ export function createStorage<S extends Schema>(
     emitterFor(area()).emit(prefix + key, { external: false });
   }
 
+  /** Calls `onChange` when a key changes, in this tab or another one. */
   function subscribe(key: string, onChange: (change: AreaChange) => void): () => void {
-    assertKey(key);
+    valueOf(key);
     return emitterFor(area()).on(prefix + key, onChange);
   }
 
-  // One subscription per key for all `change` listeners: old and new values are computed
-  // once per change, then passed to every listener
+  /**
+   * Subscribes once per key on behalf of all `change` listeners: old and new values are
+   * computed once per change, then passed to every listener.
+   */
   function startListening(): () => void {
     // Tracked apart from the decode cache, which other readers (React) also update
     const lastSeen = new Map<string, unknown>();
@@ -240,10 +289,8 @@ export function createStorage<S extends Schema>(
 
   const internals: StoreInternals = {
     read,
-    readServer: (key) => {
-      assertKey(key);
-      return cache.read(key, schema[key] as NonNullable<S[string]>, null);
-    },
+    // Storage is not sent with requests: server rendering and hydration use defaults
+    readServer: (key) => serverCache.read(key, valueOf(key), null),
     subscribe: (key, onChange) => subscribe(key, onChange),
     write,
   };
@@ -278,6 +325,7 @@ export function createStorage<S extends Schema>(
         return;
       }
       listeners.delete(listener);
+      // Stop listening to storage when nobody listens anymore
       if (listeners.size === 0) {
         stopListening?.();
         stopListening = undefined;

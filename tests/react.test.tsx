@@ -14,6 +14,11 @@ const local = createStorage('local', {
 });
 const cookies = createCookieStore({ theme: oneOf(['light', 'dark'], 'light') });
 
+/** Reads `filters` through useItem, so server snapshots are taken while rendering to a string. */
+function Probe() {
+  return <span>{useItem(local, 'filters')[0].q}</span>;
+}
+
 afterEach(() => {
   localStorage.clear();
   document.cookie = 'theme=; Path=/; Max-Age=0';
@@ -31,6 +36,14 @@ describe('useItem', () => {
     act(() => result.current[1](null));
     expect(result.current[0]).toBe(0);
     expect(localStorage.getItem('count')).toBeNull();
+  });
+
+  it('keeps values stable when server snapshots are read (hydration)', () => {
+    local.setItem('filters', { q: 'a' });
+    const { result } = renderHook(() => useItem(local, 'filters'));
+    const before = result.current[0];
+    renderToString(<Probe />);
+    expect(local.getItem('filters')).toBe(before);
   });
 
   it('keeps the setter stable and objects referentially stable', () => {

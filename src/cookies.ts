@@ -3,17 +3,24 @@ import { Emitter } from '@/lib/emitter';
 import { INTERNAL, type CookieRecord, type StoreInternals } from '@/lib/internal';
 import type { inferInput, inferValue, Schema } from '@/types';
 
-/** Cookie attributes, named like the Cookie Store API and `Set-Cookie`. */
+/**
+ * Cookie attributes, named like the Cookie Store API and `Set-Cookie`.
+ * Without `maxAge` or `expires`, the cookie is a session cookie.
+ */
 export type CookieOptions = {
-  /** Default: `'/'` */
+  /** URL path the cookie is sent for (default: `'/'`) */
   path?: string;
+  /** Domain the cookie is sent to, e.g. `'example.com'` to include subdomains */
   domain?: string;
   /** Lifetime in seconds */
   maxAge?: number;
   /** Expiry date, or a timestamp in milliseconds */
   expires?: Date | number;
+  /** Cross-site sending policy. `'none'` requires `secure: true` in browsers */
   sameSite?: 'strict' | 'lax' | 'none';
+  /** Only send the cookie over HTTPS */
   secure?: boolean;
+  /** Partition the cookie per top-level site (CHIPS) */
   partitioned?: boolean;
 };
 
@@ -97,6 +104,7 @@ export type TypedCookieStore<S extends Schema> = {
   readonly [INTERNAL]: StoreInternals;
 };
 
+/** Payload of the internal change notifications. */
 type CookieChange = { external: boolean };
 
 /** Minimal typing of the native Cookie Store `change` event. */
@@ -113,12 +121,16 @@ type NativeCookieStore = {
 // `document.cookie` is global, so every store shares one emitter
 let emitter: Emitter<CookieChange> | undefined;
 
+/**
+ * Returns the emitter shared by all cookie stores, creating it on first use. Where the
+ * native Cookie Store API exists, it also reports changes from other tabs and from the
+ * server (`Set-Cookie` responses).
+ */
 function sharedEmitter(): Emitter<CookieChange> {
   if (!emitter) {
     const created = new Emitter<CookieChange>();
     emitter = created;
     const native = (globalThis as { cookieStore?: NativeCookieStore }).cookieStore;
-    // Other tabs (and cookies set by the server) where the Cookie Store API exists
     native?.addEventListener('change', (event) => {
       [...event.changed, ...event.deleted].forEach(({ name }) =>
         created.emit(name, { external: true })
@@ -128,6 +140,12 @@ function sharedEmitter(): Emitter<CookieChange> {
   return emitter;
 }
 
+/** Creates a record without a prototype, so any cookie name is a plain key. */
+function createRecord(): CookieRecord {
+  return Object.create(null) as CookieRecord;
+}
+
+/** Decodes a percent-encoded cookie name or value, keeping it as is when malformed. */
 function safeDecode(value: string): string {
   try {
     return decodeURIComponent(value);
@@ -138,7 +156,7 @@ function safeDecode(value: string): string {
 
 /** Parses a `Cookie` header (or `document.cookie`). The first value of a name wins. */
 function parseCookieHeader(header: string): CookieRecord {
-  const record: CookieRecord = {};
+  const record = createRecord();
   header.split(';').forEach((part) => {
     const index = part.indexOf('=');
     if (index === -1) {
@@ -152,6 +170,7 @@ function parseCookieHeader(header: string): CookieRecord {
   return record;
 }
 
+/** Normalizes any {@link CookieInput} to a record of raw cookie values. */
 function toCookieRecord(input: CookieInput): CookieRecord {
   if (typeof input === 'string') {
     return parseCookieHeader(input);
@@ -163,7 +182,7 @@ function toCookieRecord(input: CookieInput): CookieRecord {
     return parseCookieHeader(input.get('cookie') ?? '');
   }
   if (typeof (input as { getAll?: unknown }).getAll === 'function') {
-    const record: CookieRecord = {};
+    const record = createRecord();
     (input as { getAll(): ReadonlyArray<{ name: string; value: string }> })
       .getAll()
       .forEach(({ name, value }) => {
@@ -171,7 +190,7 @@ function toCookieRecord(input: CookieInput): CookieRecord {
       });
     return record;
   }
-  const record: CookieRecord = {};
+  const record = createRecord();
   Object.entries(input as Record<string, string | undefined>).forEach(([name, value]) => {
     if (value !== undefined) {
       record[name] = value;
@@ -180,10 +199,12 @@ function toCookieRecord(input: CookieInput): CookieRecord {
   return record;
 }
 
+/** `'lax'` → `'Lax'`, as written in `Set-Cookie`. */
 function capitalize(value: string): string {
   return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
+/** Builds a `Set-Cookie` / `document.cookie` string. Name and value are percent-encoded. */
 function serializeCookie(name: string, value: string, options: CookieOptions): string {
   let cookie = `${encodeURIComponent(name)}=${encodeURIComponent(value)}`;
   cookie += `; Path=${options.path ?? '/'}`;
@@ -208,8 +229,18 @@ function serializeCookie(name: string, value: string, options: CookieOptions): s
   return cookie;
 }
 
+/** Returns the cookies visible to this page (none on the server). */
 function readDocumentCookies(): CookieRecord {
-  return typeof document === 'undefined' ? {} : parseCookieHeader(document.cookie);
+  return typeof document === 'undefined' ? createRecord() : parseCookieHeader(document.cookie);
+}
+
+/** Runs `task` and returns its result as a Promise, turning a thrown error into a rejection. */
+function attempt<T>(task: () => T): Promise<T> {
+  try {
+    return Promise.resolve(task());
+  } catch (error) {
+    return Promise.reject(error instanceof Error ? error : new Error(String(error)));
+  }
 }
 
 /**
@@ -239,11 +270,14 @@ export function createCookieStore<S extends Schema>(
 ): TypedCookieStore<S> {
   const { clearOnDefault = true, prefix = '', ...defaults } = options;
   const keys = Object.keys(schema);
+  // Client reads and server reads (hydration) are cached apart, so they never evict
+  // each other and values keep a stable reference
   const cache = new DecodeCache();
   const serverCache = new DecodeCache();
   const listeners = new Set<CookieChangeListener<S>>();
   let stopListening: (() => void) | undefined;
 
+  /** Returns the value definition of a key, throwing for keys outside the schema. */
   function valueOf(key: string): NonNullable<S[string]> {
     if (!Object.prototype.hasOwnProperty.call(schema, key)) {
       throw new TypeError(`[parsistent] "${key}" is not a key of this cookie store`);
@@ -251,15 +285,18 @@ export function createCookieStore<S extends Schema>(
     return schema[key] as NonNullable<S[string]>;
   }
 
+  /** Returns the raw value of a key's cookie in a record, or `null`. */
   function rawOf(record: CookieRecord, key: string): string | null {
     const name = prefix + key;
     return Object.prototype.hasOwnProperty.call(record, name) ? (record[name] ?? null) : null;
   }
 
+  /** Returns the decoded value of a key from `document.cookie`. */
   function read(key: string): unknown {
     return cache.read(key, valueOf(key), rawOf(readDocumentCookies(), key));
   }
 
+  /** Builds the cookie string for a value: a deletion when it is `null` or the default. */
   function headerFor(key: string, value: unknown, callOptions: CookieOptions): string {
     const attributes = { ...defaults, ...callOptions };
     const encoded = encode(valueOf(key), value, clearOnDefault);
@@ -269,6 +306,7 @@ export function createCookieStore<S extends Schema>(
     return serializeCookie(prefix + key, encoded, attributes);
   }
 
+  /** Writes a cookie through `document.cookie`, then notifies subscribers. */
   function write(key: string, value: unknown, callOptions: CookieOptions = {}): void {
     const header = headerFor(key, value, callOptions);
     if (typeof document === 'undefined') {
@@ -281,11 +319,16 @@ export function createCookieStore<S extends Schema>(
     sharedEmitter().emit(prefix + key, { external: false });
   }
 
+  /** Calls `onChange` when a key's cookie changes. */
   function subscribe(key: string, onChange: (change: CookieChange) => void): () => void {
     valueOf(key);
     return sharedEmitter().on(prefix + key, onChange);
   }
 
+  /**
+   * Subscribes once per key on behalf of all `change` listeners: old and new values are
+   * computed once per change, then passed to every listener.
+   */
   function startListening(): () => void {
     // Tracked apart from the decode cache, which other readers (React) also update
     const lastSeen = new Map<string, unknown>();
@@ -307,23 +350,10 @@ export function createCookieStore<S extends Schema>(
 
   return {
     schema,
-    get: (key) => Promise.resolve(read(key) as never),
-    set: (key, value, callOptions) => {
-      try {
-        write(key, value, callOptions);
-        return Promise.resolve();
-      } catch (error) {
-        return Promise.reject(error instanceof Error ? error : new Error(String(error)));
-      }
-    },
-    delete: (key, callOptions) => {
-      try {
-        write(key, null, callOptions);
-        return Promise.resolve();
-      } catch (error) {
-        return Promise.reject(error instanceof Error ? error : new Error(String(error)));
-      }
-    },
+    // Async like `window.cookieStore`: errors are returned as rejections, never thrown
+    get: (key) => attempt(() => read(key) as never),
+    set: (key, value, callOptions) => attempt(() => write(key, value, callOptions)),
+    delete: (key, callOptions) => attempt(() => write(key, null, callOptions)),
     addEventListener(type, listener) {
       // Runtime guard for untyped (JavaScript) callers
       // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
@@ -340,6 +370,7 @@ export function createCookieStore<S extends Schema>(
         return;
       }
       listeners.delete(listener);
+      // Stop listening to cookie changes when nobody listens anymore
       if (listeners.size === 0) {
         stopListening?.();
         stopListening = undefined;
@@ -349,6 +380,7 @@ export function createCookieStore<S extends Schema>(
       // Keep only this store's cookies: the record is meant to be passed to the client,
       // and must never carry other (e.g. httpOnly session) cookies
       const all = toCookieRecord(input);
+      // A plain object: the record is serialized into client-side props
       const cookies: CookieRecord = {};
       keys.forEach((key) => {
         const raw = rawOf(all, key);
@@ -365,6 +397,7 @@ export function createCookieStore<S extends Schema>(
     serialize: (key, value, callOptions = {}) => headerFor(key, value, callOptions),
     [INTERNAL]: {
       read,
+      // Server rendering and hydration: the request cookies given to `CookieProvider`
       readServer: (key, cookies) =>
         serverCache.read(key, valueOf(key), cookies ? rawOf(cookies, key) : null),
       subscribe: (key, onChange) => subscribe(key, onChange),
