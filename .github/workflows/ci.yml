@@ -42,6 +42,8 @@ jobs:
         run: bun run test
       - name: Build
         run: bun run build
+      - name: Check the built types
+        run: bun run test:dist
       - name: Lint package (publint)
         run: bunx publint@0.3.12
 

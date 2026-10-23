@@ -2,9 +2,14 @@ import type { Schema } from '@/types';
 
 /**
  * Key of the internal interface shared by stores, used by `parsistent/react`.
+ *
+ * A string, not a `unique symbol`: the main entry and `parsistent/react` are bundled
+ * separately, and each would declare its own symbol type, so stores would not be
+ * assignable to `useItem`. String keys compare structurally (like Standard Schema's
+ * `'~standard'`), and the `~` sorts them last in autocomplete.
  * @internal
  */
-export const INTERNAL: unique symbol = Symbol.for('parsistent:internal');
+export const INTERNAL = '~parsistent';
 
 /**
  * Raw cookie values from a request, for server rendering.
