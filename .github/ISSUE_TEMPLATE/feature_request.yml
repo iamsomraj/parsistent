@@ -1,0 +1,24 @@
+name: Feature request
+description: Suggest an idea or enhancement for parsistent
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What are you trying to do, and why is it hard today?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed API
+      description: How would it work? parsistent mirrors the browser APIs (Web Storage, Cookie Store), so say which native method it relates to, if any.
+      render: ts
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Alternatives and context
+      description: Workarounds you tried, or related issues.
