@@ -232,9 +232,14 @@ import { parseAsInteger } from 'nuqs';
 createStorage('local', { page: parseAsInteger.withDefault(1) });
 ```
 
-## Example
+## Examples
 
-[`examples/vite`](examples/vite) is the app from the demo above.
+| Example                                 | Shows                                                                                            |
+| --------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| [React (Vite)](examples/react-vite)     | Client-only app: storage, cookies and cross-tab sync (the demo above)                            |
+| [Next.js (App Router)](examples/nextjs) | Server rendering: cookies on the first paint, server components, a route handler, `localStorage` |
+
+![parsistent with Next.js: the theme cookie is server-rendered, so reloading never flashes](https://raw.githubusercontent.com/iamsomraj/parsistent/main/.github/assets/demo-nextjs.gif)
 
 ## Contributing
 
