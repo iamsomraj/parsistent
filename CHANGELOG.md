@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.0.3
+
+[compare changes](https://github.com/iamsomraj/parsistent/compare/v0.0.2...v0.0.3)
+
+No code changes: this release updates the README and package metadata shown on npm.
+
+### 📖 Documentation
+
+- Documentation site with live demos and an API reference: https://iamsomraj.github.io/parsistent/ ([ffabf4f](https://github.com/iamsomraj/parsistent/commit/ffabf4f))
+- React (Vite) and Next.js (App Router) examples, each with a demo GIF ([ac9a9f6](https://github.com/iamsomraj/parsistent/commit/ac9a9f6))
+- `homepage` in `package.json` points to the documentation site ([ffabf4f](https://github.com/iamsomraj/parsistent/commit/ffabf4f))
+
+### ❤️ Contributors
+
+- Somraj Mukherjee ([@iamsomraj](https://github.com/iamsomraj))
+
 ## v0.0.2
 
 [compare changes](https://github.com/iamsomraj/parsistent/compare/v0.0.1...v0.0.2)

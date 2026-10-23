@@ -2,6 +2,7 @@
 
 [![npm version](https://img.shields.io/npm/v/parsistent.svg)](https://www.npmjs.com/package/parsistent)
 [![CI](https://github.com/iamsomraj/parsistent/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/iamsomraj/parsistent/actions/workflows/ci.yml)
+[![docs](https://img.shields.io/badge/docs-parsistent-0f9d74.svg)](https://iamsomraj.github.io/parsistent/)
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 Typed `localStorage`, `sessionStorage` and cookies, **shaped like the browser APIs**.
