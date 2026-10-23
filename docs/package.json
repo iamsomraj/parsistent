@@ -1,0 +1,28 @@
+{
+  "name": "parsistent-docs",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "postbuild": "pagefind --site out --output-path out/_pagefind"
+  },
+  "dependencies": {
+    "next": "^16.4.3",
+    "nextra": "^4.6.1",
+    "nextra-theme-docs": "^4.6.1",
+    "parsistent": "file:..",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "pagefind": "^1.4.0",
+    "typescript": "~6.0.3"
+  },
+  "overrides": {
+    "zod": "4.1.12"
+  }
+}

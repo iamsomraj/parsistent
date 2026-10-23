@@ -1,0 +1,68 @@
+---
+title: API Reference
+description: Generated from the published type declarations.
+---
+
+import { generateDefinition, TSDoc } from 'nextra/tsdoc';
+
+# API Reference
+
+Generated from the type declarations published with the package.
+
+## createStorage
+
+<TSDoc
+  definition={generateDefinition({
+    code: "export { createStorage as default } from 'parsistent'",
+  })}
+/>
+
+### TypedStorage
+
+<TSDoc
+  definition={generateDefinition({
+    code: "import type { TypedStorage, Schema } from 'parsistent'; type Storage = TypedStorage<Schema>; export default Storage",
+  })}
+/>
+
+## createCookieStore
+
+<TSDoc
+  definition={generateDefinition({
+    code: "export { createCookieStore as default } from 'parsistent'",
+  })}
+/>
+
+### CookieOptions
+
+<TSDoc
+  definition={generateDefinition({
+    code: "export type { CookieOptions as default } from 'parsistent'",
+  })}
+/>
+
+## useItem
+
+From `parsistent/react`.
+
+<TSDoc
+  definition={generateDefinition({
+    code: "export { useItem as default } from 'parsistent/react'",
+  })}
+/>
+
+### CookieProvider
+
+<TSDoc
+  definition={generateDefinition({
+    code: "export type { CookieProviderProps as default } from 'parsistent/react'",
+  })}
+/>
+
+## Value
+
+<TSDoc
+  definition={generateDefinition({
+    code: "import type { Value as V } from 'parsistent'; type Value = V<unknown>; export default Value",
+  })}
+/>

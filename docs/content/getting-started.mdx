@@ -1,0 +1,57 @@
+---
+title: Getting Started
+description: Install parsistent and create your first typed storage.
+---
+
+# Getting Started
+
+## Installation
+
+```sh npm2yarn
+npm install parsistent
+```
+
+React 18 or later is needed only for `parsistent/react`.
+
+## Declare a store
+
+Declare each key once, with a type and a default. Keep stores in their own module, so every
+part of the app shares them:
+
+```ts filename="stores.ts"
+import { createCookieStore, createStorage, number, oneOf } from 'parsistent';
+
+export const local = createStorage('local', {
+  theme: oneOf(['light', 'dark'], 'light'),
+  count: number(0),
+});
+
+export const appCookies = createCookieStore({
+  consent: oneOf(['granted', 'denied'], 'denied'),
+});
+```
+
+## Use it like the browser API
+
+```ts
+local.getItem('count'); // 0
+local.setItem('count', 3); // stored as '3'
+local.removeItem('count'); // reads as 0 again
+
+await appCookies.set('consent', 'granted');
+await appCookies.get('consent'); // 'granted'
+```
+
+## Use it in React
+
+```tsx
+import { useItem } from 'parsistent/react';
+import { local } from './stores';
+
+function Counter() {
+  const [count, setCount] = useItem(local, 'count');
+  return <button onClick={() => setCount((c) => c + 1)}>{count}</button>;
+}
+```
+
+Next: [Storage](/storage), [Cookies](/cookies), [Values](/values), [React](/react).

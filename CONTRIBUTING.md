@@ -21,6 +21,7 @@ Requires Node 22.12+ and [Bun](https://bun.sh) 1.4+.
 ```sh
 bun install
 bun run test:watch   # tests in watch mode
+bun run docs:dev     # documentation site (see docs/README.md)
 ```
 
 Before opening a pull request, run:

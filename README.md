@@ -6,6 +6,8 @@
 
 Typed `localStorage`, `sessionStorage` and cookies, **shaped like the browser APIs**.
 
+📖 **Documentation**: [iamsomraj.github.io/parsistent](https://iamsomraj.github.io/parsistent/), with live demos
+
 ```ts
 const local = createStorage('local', {
   theme: oneOf(['light', 'dark'], 'light'),

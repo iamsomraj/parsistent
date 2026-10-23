@@ -3,3 +3,7 @@ coverage
 node_modules
 bun.lock
 examples/*/dist
+docs/.next
+docs/out
+docs/next-env.d.ts
+docs/package-lock.json
