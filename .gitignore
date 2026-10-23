@@ -4,3 +4,9 @@ coverage
 .DS_Store
 *.log
 *.tgz
+examples/*/package-lock.json
+examples/*/.next
+examples/*/next-env.d.ts
+# Written by `next dev`
+examples/*/AGENTS.md
+*.tsbuildinfo
