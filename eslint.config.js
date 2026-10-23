@@ -7,8 +7,9 @@ import importPlugin from 'eslint-plugin-import-x';
 
 export default [
   {
-    // Build output, dependencies, and examples (small apps with their own tooling)
-    ignores: ['dist', 'node_modules', 'examples'],
+    // Build output, dependencies, examples (small apps with their own tooling), and the
+    // published-types fixture, whose imports only resolve after a build
+    ignores: ['dist', 'node_modules', 'examples', 'tests/published-types'],
   },
   js.configs.recommended,
   {

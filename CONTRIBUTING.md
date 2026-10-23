@@ -26,16 +26,17 @@ bun run test:watch   # tests in watch mode
 Before opening a pull request, run:
 
 ```sh
-bun run lint && bun run typecheck && bun run test && bun run build && bun run format
+bun run lint && bun run typecheck && bun run test && bun run build && bun run test:dist && bun run format
 ```
 
-| Script               | Description                               |
-| -------------------- | ----------------------------------------- |
-| `bun run test`       | Unit, React and type-level tests (Vitest) |
-| `bun run typecheck`  | TypeScript check                          |
-| `bun run lint`       | ESLint                                    |
-| `bun run format:fix` | Prettier                                  |
-| `bun run build`      | Build `dist/` with tsup                   |
+| Script               | Description                                 |
+| -------------------- | ------------------------------------------- |
+| `bun run test`       | Unit, React and type-level tests (Vitest)   |
+| `bun run typecheck`  | TypeScript check                            |
+| `bun run lint`       | ESLint                                      |
+| `bun run format:fix` | Prettier                                    |
+| `bun run build`      | Build `dist/` with tsup                     |
+| `bun run test:dist`  | Type-check a consumer against `dist/` types |
 
 ## Workflow
 
