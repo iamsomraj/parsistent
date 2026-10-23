@@ -1,0 +1,60 @@
+---
+title: Values
+description: How each key is parsed, validated and stored.
+---
+
+# Values
+
+| Helper                      | Type                          | Stored as            |
+| --------------------------- | ----------------------------- | -------------------- |
+| `string(default?)`          | `string`                      | as is                |
+| `oneOf(options, default?)`  | union of the options          | as is                |
+| `number(default?)`          | `number` (finite)             | `'42'`               |
+| `boolean(default?)`         | `boolean`                     | `'true'` / `'false'` |
+| `date(default?)`            | `Date` (valid calendar dates) | ISO string           |
+| `json(validator, default?)` | validated JSON                | JSON                 |
+
+Without a default, a key reads as `T | null`.
+
+## JSON
+
+`json()` requires a validator, because stored data is user-controlled: a function returning the
+value (or `null`), or any [Standard Schema](https://standardschema.dev) (Zod, Valibot, ArkType…).
+
+```ts
+import { json } from 'parsistent';
+import { z } from 'zod';
+
+const filters = json(z.object({ q: z.string(), page: z.number() }), { q: '', page: 1 });
+```
+
+## Custom values
+
+Any object with `parse` and `serialize` works:
+
+```ts
+import type { Value } from 'parsistent';
+
+const point: Value<{ x: number; y: number }> = {
+  parse: (raw) => {
+    const [x = NaN, y = NaN] = raw.split(',').map(Number);
+    return Number.isFinite(x) && Number.isFinite(y) ? { x, y } : null;
+  },
+  serialize: ({ x, y }) => `${x},${y}`,
+  eq: (a, b) => a.x === b.x && a.y === b.y,
+  defaultValue: { x: 0, y: 0 },
+};
+```
+
+Provide `eq` for objects, so setting a value equal to the default removes the key.
+
+## nuqs parsers
+
+[nuqs](https://nuqs.dev) parsers have the same shape, so you can reuse the ones from your URL
+state:
+
+```ts
+import { parseAsInteger } from 'nuqs';
+
+createStorage('local', { page: parseAsInteger.withDefault(1) });
+```

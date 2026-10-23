@@ -71,7 +71,7 @@
   "bugs": {
     "url": "https://github.com/iamsomraj/parsistent/issues"
   },
-  "homepage": "https://github.com/iamsomraj/parsistent#readme",
+  "homepage": "https://iamsomraj.github.io/parsistent/",
   "scripts": {
     "dev": "tsup --watch",
     "build": "node --input-type=module -e \"import { rmSync } from 'node:fs'; rmSync('dist', { recursive: true, force: true })\" && tsup",
@@ -83,7 +83,10 @@
     "format": "prettier --check \"**/*.{ts,tsx,js,json,md,yml,yaml}\"",
     "format:fix": "prettier --write \"**/*.{ts,tsx,js,json,md,yml,yaml}\"",
     "prepublishOnly": "bun run typecheck && bun run lint && bun run test && bun run build && bun run test:dist",
-    "test:dist": "tsc -p tests/published-types/tsconfig.json"
+    "test:dist": "tsc -p tests/published-types/tsconfig.json",
+    "docs:dev": "bun run build && cd docs && npm install && npm run dev",
+    "docs:build": "bun run build && cd docs && npm ci && npm run build",
+    "docs:deploy": "gh workflow run docs.yml"
   },
   "peerDependencies": {
     "react": ">=18"

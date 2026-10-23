@@ -1,0 +1,45 @@
+---
+title: Introduction
+description: Typed localStorage, sessionStorage and cookies, shaped like the browser APIs, with SSR-safe React hooks.
+---
+
+import { StorageDemo } from '../components/demos';
+
+# parsistent
+
+Typed `localStorage`, `sessionStorage` and cookies, **shaped like the browser APIs**.
+
+```ts
+import { createStorage, number, oneOf } from 'parsistent';
+
+const local = createStorage('local', {
+  theme: oneOf(['light', 'dark'], 'light'),
+  count: number(0),
+});
+
+local.getItem('count'); // number, never a raw string
+local.setItem('count', 3);
+```
+
+Try it: this demo uses parsistent itself.
+
+<StorageDemo />
+
+## Why parsistent?
+
+The Web Storage and Cookie Store APIs only store strings, and anything can be in them: values
+written by an older version of your app, edited in DevTools, or set by an extension.
+parsistent keeps the API you already know, and adds what it lacks:
+
+|                          | `localStorage`                | parsistent                                   |
+| ------------------------ | ----------------------------- | -------------------------------------------- |
+| Values                   | strings                       | typed (`number`, `Date`, unions, JSON…)      |
+| Missing or invalid value | `null`, or garbage            | your default                                 |
+| Validation               | none                          | built in, or any Zod / Valibot / ArkType     |
+| Keys                     | any string                    | only the keys you declared, type-checked     |
+| Changes in the same tab  | no event                      | `change` event                               |
+| Changes in other tabs    | `storage` event, raw strings  | `change` event, parsed values                |
+| Server rendering         | `localStorage` is not defined | defaults on the server, cookies from headers |
+| React                    | —                             | `useItem()`, like `useState`                 |
+
+No runtime dependencies. React is optional.

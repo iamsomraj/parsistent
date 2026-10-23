@@ -10,3 +10,8 @@ examples/*/next-env.d.ts
 # Written by `next dev`
 examples/*/AGENTS.md
 *.tsbuildinfo
+# Docs site (Next.js + Nextra)
+docs/.next
+docs/out
+docs/next-env.d.ts
+docs/AGENTS.md

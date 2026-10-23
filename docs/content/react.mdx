@@ -1,0 +1,30 @@
+---
+title: React
+description: useItem works like useState, for any storage or cookie store.
+---
+
+# React
+
+```tsx
+import { useItem } from 'parsistent/react';
+import { local } from './stores';
+
+function Counter() {
+  const [count, setCount] = useItem(local, 'count');
+  return <button onClick={() => setCount((c) => c + 1)}>{count}</button>;
+}
+```
+
+- Works like `useState`: the setter takes a value, an updater, or `null` to remove the key.
+- Re-renders when the key changes: in this tab or another one, through `useItem` or `setItem`.
+- Works with storage and cookie stores.
+- The setter keeps the same identity between renders, like `useState`'s.
+
+## Server rendering
+
+`useItem` renders the default on the server and during hydration, then the stored value, so
+hydration never mismatches. Storage is not sent with requests, so it can't be rendered on the
+server.
+
+Cookies are: pass the request cookies to `CookieProvider`, and `useItem` renders their values
+from the first paint. See [Next.js](/nextjs).

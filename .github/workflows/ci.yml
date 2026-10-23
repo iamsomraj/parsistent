@@ -47,6 +47,22 @@ jobs:
       - name: Lint package (publint)
         run: bunx publint@0.3.12
 
+  docs:
+    name: Docs build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+      - name: Install library dependencies
+        run: bun install --frozen-lockfile
+      - name: Build the library and the site
+        run: bun run docs:build
+
   peer-min:
     name: Minimum peer version (React 18)
     runs-on: ubuntu-latest

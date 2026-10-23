@@ -1,0 +1,60 @@
+---
+title: Cookies
+description: A typed mirror of the Cookie Store API, in every browser and on the server.
+---
+
+import { CookieDemo } from '../components/demos';
+
+# Cookies
+
+Cookie stores mirror the async
+[Cookie Store API](https://developer.mozilla.org/docs/Web/API/Cookie_Store_API), and work in
+every browser:
+
+```ts
+import { createCookieStore, oneOf } from 'parsistent';
+
+export const appCookies = createCookieStore(
+  { theme: oneOf(['light', 'dark'], 'light') },
+  { maxAge: 60 * 60 * 24 * 365, sameSite: 'lax' } // default attributes
+);
+
+await appCookies.get('theme'); // 'light' | 'dark'
+await appCookies.set('theme', 'dark', { secure: true });
+await appCookies.delete('theme');
+appCookies.addEventListener('change', (event) => {});
+```
+
+<CookieDemo />
+
+## Attributes
+
+| Attribute     | Description                                                |
+| ------------- | ---------------------------------------------------------- |
+| `path`        | URL path the cookie is sent for (default: `/`)             |
+| `domain`      | Domain the cookie is sent to, e.g. to include subdomains   |
+| `maxAge`      | Lifetime in seconds                                        |
+| `expires`     | Expiry date, or a timestamp in milliseconds                |
+| `sameSite`    | `'strict'`, `'lax'` or `'none'` (which requires `secure`)  |
+| `secure`      | Only send the cookie over HTTPS                            |
+| `partitioned` | Partition the cookie per top-level site (CHIPS)            |
+
+Without `maxAge` or `expires`, the cookie lasts for the browser session. Set default
+attributes when creating the store, and override them per call.
+
+`change` events cover the current tab in every browser, and other tabs (and cookies set by the
+server) in browsers with the native Cookie Store API.
+
+## On the server
+
+```ts
+// Route handlers, middleware…
+const theme = appCookies.fromHeader(request).get('theme');
+
+// Set a cookie in a response
+response.headers.append('Set-Cookie', appCookies.serialize('theme', 'dark'));
+```
+
+`fromHeader` accepts a `Cookie` header string, a `Request`, `Headers`, a record, or anything with
+`getAll()` such as Next.js `cookies()`. `serialize` returns a deletion header when the value is
+`null` or equals the default.

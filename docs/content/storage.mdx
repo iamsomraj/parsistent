@@ -1,0 +1,80 @@
+---
+title: Storage
+description: A typed mirror of localStorage and sessionStorage.
+---
+
+import { ValidationDemo } from '../components/demos';
+
+# Storage
+
+`createStorage` returns a typed mirror of `localStorage` / `sessionStorage`, limited to the
+keys you declare:
+
+```ts
+import { createStorage, date, json, number, oneOf, string } from 'parsistent';
+import { z } from 'zod';
+
+export const local = createStorage('local', {
+  theme: oneOf(['light', 'dark'], 'light'),
+  count: number(0),
+  name: string(), // no default: reads as string | null
+  lastVisit: date(new Date(0)),
+  filters: json(z.object({ q: z.string() }), { q: '' }),
+});
+```
+
+## Methods
+
+```ts
+local.getItem('theme'); // 'light' | 'dark'
+local.setItem('count', 3); // stored as '3'
+local.removeItem('count'); // reads as 0 again
+local.clear(); // removes only the declared keys
+local.length; // number of declared keys that are set
+local.key(0); // 'theme' | 'count' | … | null
+
+local.setItem('count', '3'); // ❌ type error
+local.setItem('nope', 1); // ❌ type error
+```
+
+## Invalid values read as the default
+
+Storage can contain anything. When a stored value doesn't parse, `getItem` returns the
+default instead:
+
+<ValidationDemo />
+
+## Behaviour
+
+- **Setting the default removes the key**, to keep storage clean. Pass
+  `{ clearOnDefault: false }` to keep it.
+- **`'local'` / `'session'`** resolve lazily, so stores can be created at module level in
+  server-rendered apps. You can also pass any `Storage` object, or a function returning one.
+- **On the server**, reads return defaults and writes are ignored, so values never leak
+  between requests.
+- **Blocked storage** (disabled site data, some private modes) falls back to memory with a
+  warning, instead of throwing.
+- **Full storage**: like `localStorage.setItem`, `setItem` throws when the quota is exceeded.
+
+## Change events
+
+```ts
+local.addEventListener('change', (event) => {
+  event.key; // 'count'
+  event.oldValue; // 0
+  event.newValue; // 3
+  event.external; // true when the change came from another tab
+});
+```
+
+Unlike the native `storage` event, it also fires for changes made in the current tab, and only
+when the parsed value actually changes.
+
+## Options
+
+```ts
+createStorage('local', schema, {
+  prefix: 'my-app:', // stored as 'my-app:count'
+  clearOnDefault: true,
+});
+```

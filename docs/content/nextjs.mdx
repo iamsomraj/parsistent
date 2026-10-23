@@ -1,0 +1,67 @@
+---
+title: Next.js
+description: Render cookie values on the server, without a flash, in the App Router.
+---
+
+# Next.js
+
+In the App Router, read request cookies in the root layout and pass them to `CookieProvider`.
+Client components using `useItem` then render the right value from the first byte:
+
+```tsx filename="app/layout.tsx"
+import { cookies } from 'next/headers';
+import { CookieProvider } from 'parsistent/react';
+import type { ReactNode } from 'react';
+import { appCookies } from './stores';
+
+export default async function RootLayout({ children }: { children: ReactNode }) {
+  const snapshot = appCookies.fromHeader(await cookies());
+  return (
+    <html lang="en">
+      <body>
+        <CookieProvider cookies={snapshot.cookies}>{children}</CookieProvider>
+      </body>
+    </html>
+  );
+}
+```
+
+`snapshot.cookies` only contains the store's own cookies, never other request cookies such as
+session tokens, because it is sent to the client.
+
+## Server components
+
+```tsx filename="app/page.tsx"
+import { cookies } from 'next/headers';
+import { appCookies } from './stores';
+
+export default async function Page() {
+  const theme = appCookies.fromHeader(await cookies()).get('theme'); // 'light' | 'dark'
+  return <p>Theme: {theme}</p>;
+}
+```
+
+## Route handlers
+
+```ts filename="app/api/theme/route.ts"
+import { appCookies } from '../../stores';
+
+export function POST(request: Request) {
+  const current = appCookies.fromHeader(request).get('theme');
+  const next = current === 'light' ? 'dark' : 'light';
+  return Response.json(
+    { theme: next },
+    { headers: { 'Set-Cookie': appCookies.serialize('theme', next) } }
+  );
+}
+```
+
+After calling it from a client component, call `router.refresh()`: server components re-render,
+and `useItem` reads the new cookie.
+
+## localStorage
+
+Stores created with `'local'` can live in the same module as cookie stores: on the server they
+read defaults and ignore writes. Their values appear after hydration.
+
+The complete app is in [`examples/nextjs`](https://github.com/iamsomraj/parsistent/tree/main/examples/nextjs).
