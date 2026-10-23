@@ -31,6 +31,12 @@ describe('createCookieStore', () => {
     expect(document.cookie).toContain('theme=dark');
   });
 
+  it('get rejects (does not throw) for keys outside the schema', async () => {
+    const cookies = createCookies();
+    const result = cookies.get('nope' as 'theme');
+    await expect(result).rejects.toThrow('"nope" is not a key');
+  });
+
   it('reads invalid values as the default', async () => {
     const cookies = createCookies();
     document.cookie = 'theme=blue; Path=/';

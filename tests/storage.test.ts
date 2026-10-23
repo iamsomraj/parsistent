@@ -98,6 +98,20 @@ describe('createStorage', () => {
     expect(() => local.getItem('nope' as 'count')).toThrow('"nope" is not a key');
   });
 
+  it('gives each blocked custom source its own memory fallback', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const blocked = () => {
+      throw new Error('SecurityError');
+    };
+    const first = createStorage(blocked, { count: number(0) });
+    const second = createStorage(blocked, { count: number(0) });
+    first.setItem('count', 1);
+    expect(second.getItem('count')).toBe(0);
+    // Warned once per page, not once per store
+    expect(warn).toHaveBeenCalledTimes(1);
+    warn.mockRestore();
+  });
+
   it('falls back to memory when storage is unavailable', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     const blocked = createStorage(
@@ -108,7 +122,6 @@ describe('createStorage', () => {
     );
     blocked.setItem('count', 4);
     expect(blocked.getItem('count')).toBe(4);
-    expect(warn).toHaveBeenCalledTimes(1);
     warn.mockRestore();
   });
 

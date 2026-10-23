@@ -7,8 +7,7 @@ import importPlugin from 'eslint-plugin-import-x';
 
 export default [
   {
-    // Ignore build outputs and generated docs/site artifacts
-    // Examples are small apps with their own tooling
+    // Build output, dependencies, and examples (small apps with their own tooling)
     ignores: ['dist', 'node_modules', 'examples'],
   },
   js.configs.recommended,

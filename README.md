@@ -24,16 +24,16 @@ The Web Storage and Cookie Store APIs only store strings, and anything can be in
 values written by an older version of your app, edited in DevTools, or set by an extension.
 parsistent keeps the API you already know, and adds what it lacks:
 
-|                          | `localStorage` / `cookieStore` | parsistent                                   |
-| ------------------------ | ------------------------------ | -------------------------------------------- |
-| Values                   | strings                        | typed (`number`, `Date`, unions, JSON…)      |
-| Missing or invalid value | `null`, or garbage             | your default                                 |
-| Validation               | none                           | built in, or any Zod / Valibot / ArkType     |
-| Keys                     | any string                     | only the keys you declared, type-checked     |
-| Changes in the same tab  | no event                       | `change` event                               |
-| Changes in other tabs    | `storage` event, raw strings   | `change` event, parsed values                |
-| Server rendering         | `localStorage` is not defined  | defaults on the server, cookies from headers |
-| React                    | —                              | `useItem()`, like `useState`                 |
+|                          | `localStorage`                | parsistent                                   |
+| ------------------------ | ----------------------------- | -------------------------------------------- |
+| Values                   | strings                       | typed (`number`, `Date`, unions, JSON…)      |
+| Missing or invalid value | `null`, or garbage            | your default                                 |
+| Validation               | none                          | built in, or any Zod / Valibot / ArkType     |
+| Keys                     | any string                    | only the keys you declared, type-checked     |
+| Changes in the same tab  | no event                      | `change` event                               |
+| Changes in other tabs    | `storage` event, raw strings  | `change` event, parsed values                |
+| Server rendering         | `localStorage` is not defined | defaults on the server, cookies from headers |
+| React                    | —                             | `useItem()`, like `useState`                 |
 
 No runtime dependencies. React is optional.
 
@@ -80,8 +80,11 @@ local.setItem('nope', 1); // ❌ type error
   `{ clearOnDefault: false }` to keep it.
 - **`'local'` / `'session'`** resolve lazily, so stores can be created at module level in
   server-rendered apps. You can also pass any `Storage` object, or a function returning one.
+- **On the server**, reads return defaults and writes are ignored, so values never leak
+  between requests.
 - **Blocked storage** (disabled site data, some private modes) falls back to memory with a
   warning, instead of throwing.
+- **Full storage**: like `localStorage.setItem`, `setItem` throws when the quota is exceeded.
 
 ### Change events
 
@@ -188,14 +191,14 @@ session tokens, because it is sent to the client.
 
 ## Values
 
-| Helper                      | Type                 | Stored as            |
-| --------------------------- | -------------------- | -------------------- |
-| `string(default?)`          | `string`             | as is                |
-| `oneOf(options, default?)`  | union of the options | as is                |
-| `number(default?)`          | `number` (finite)    | `'42'`               |
-| `boolean(default?)`         | `boolean`            | `'true'` / `'false'` |
-| `date(default?)`            | `Date`               | ISO string           |
-| `json(validator, default?)` | validated JSON       | JSON                 |
+| Helper                      | Type                          | Stored as            |
+| --------------------------- | ----------------------------- | -------------------- |
+| `string(default?)`          | `string`                      | as is                |
+| `oneOf(options, default?)`  | union of the options          | as is                |
+| `number(default?)`          | `number` (finite)             | `'42'`               |
+| `boolean(default?)`         | `boolean`                     | `'true'` / `'false'` |
+| `date(default?)`            | `Date` (valid calendar dates) | ISO string           |
+| `json(validator, default?)` | validated JSON                | JSON                 |
 
 Without a default, a key reads as `T | null`.
 

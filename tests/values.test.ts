@@ -39,6 +39,10 @@ describe('value helpers', () => {
     const moment = new Date('2025-01-02T03:04:05.000Z');
     expect(value.parse(value.serialize(moment))).toEqual(moment);
     expect(value.parse('nope')).toBeNull();
+    expect(value.parse('2021-02-30T00:00:00.000Z')).toBeNull();
+    expect(value.parse('2020-02-29T00:00:00.000Z')).toEqual(new Date('2020-02-29T00:00:00.000Z'));
+    // The calendar check applies to the written date, not the UTC date
+    expect(value.parse('2021-03-01T00:30:00+01:00')).toEqual(new Date('2021-02-28T23:30:00.000Z'));
     expect(value.eq?.(new Date(1), new Date(1))).toBe(true);
   });
 
