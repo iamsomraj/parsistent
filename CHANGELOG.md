@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.0.2
+
+[compare changes](https://github.com/iamsomraj/parsistent/compare/v0.0.1...v0.0.2)
+
+### 🩹 Fixes
+
+- TypeScript: stores are assignable to `useItem` again. In 0.0.1 the published types rejected every store passed to `useItem` ([344eaf9](https://github.com/iamsomraj/parsistent/commit/344eaf9))
+
+### 🏡 Chore
+
+- CI and `prepublishOnly` type-check a consumer against the built types (`bun run test:dist`) ([344eaf9](https://github.com/iamsomraj/parsistent/commit/344eaf9))
+
+### ❤️ Contributors
+
+- Somraj Mukherjee ([@iamsomraj](https://github.com/iamsomraj))
+
 ## v0.0.1
 
 First release: typed `localStorage`, `sessionStorage` and cookies, shaped like the browser APIs, with a React hook. The API may still change before 1.0.
